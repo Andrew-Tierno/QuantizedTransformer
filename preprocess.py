@@ -24,8 +24,10 @@ def parse_train_dict(train_dict, fname):
 def preprocess_train(source_file, target_file, out_file):
     with open(source_file) as src, open(target_file) as tgt, open(out_file, 'w') as out:
         for src_line, tgt_line in zip(src, tgt):
-            if (not(src_line.startswith("<"))):
-                out.write("{0}\t{1}\n".format(src_line.strip(), tgt_line.strip()))
+            src_line = src_line.strip()
+            tgt_line = tgt_line.strip()
+            if not(src_line.startswith("<")) and len(src_line) > 0:
+                out.write("{0}\t{1}\n".format(src_line, tgt_line))
     # DESC_OPEN = "<description>"
     # DESC_CLOSE = "</description>"
     # src_dict = {}
