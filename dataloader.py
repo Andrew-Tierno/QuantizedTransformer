@@ -18,9 +18,10 @@ def generate_dataloaders():
     TGT = data.Field(tokenize=tokenize_en, init_token = BOS_WORD, 
         eos_token = EOS_WORD, pad_token=BLANK_WORD)
     MAX_LEN = 100
-    train, val, test = datasets.IWSLT.splits(
-        exts=('.de', '.en'), fields=(SRC, TGT), 
-        filter_pred=lambda x: len(vars(x)['src']) <= MAX_LEN and 
+    train, val, test = data.TabularDataset.splits(
+        path="./data_processed/", train='train.tsv', test='test2013.tsv',
+        validation='dev.tsv', fields=[('src',SRC), ('trg',TGT)], 
+        format='tsv', filter_pred=lambda x: len(vars(x)['src']) <= MAX_LEN and 
             len(vars(x)['trg']) <= MAX_LEN)
     MIN_FREQ = 2
     SRC.build_vocab(train.src, min_freq=MIN_FREQ)

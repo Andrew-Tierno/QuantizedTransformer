@@ -102,3 +102,6 @@ def train():
             print(sym, end=" ")
         print()
         break
+
+if __name__ == "__main__":
+    train()
