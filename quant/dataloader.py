@@ -24,7 +24,7 @@ def generate_dataloaders():
         eos_token = EOS_WORD, pad_token=BLANK_WORD)
     MAX_LEN = 100
     train, val, test = data.TabularDataset.splits(
-        path="./data_processed/", train='train.tsv', test='test2013.tsv',
+        path="../data_processed/", train='train.tsv', test='test2013.tsv',
         validation='dev.tsv', fields=[('src',SRC), ('trg',TGT)], 
         format='tsv', filter_pred=myfilter)#lambda x: len(vars(x)['src']) <= MAX_LEN and 
 #            len(vars(x)['trg']) <= MAX_LEN)
