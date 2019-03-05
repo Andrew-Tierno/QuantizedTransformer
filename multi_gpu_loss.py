@@ -23,7 +23,7 @@ class MultiGPULossCompute:
         out_grad = [[] for _ in out_scatter]
         targets = nn.parallel.scatter(targets, 
                                       target_gpus=self.devices)
-
+        normalize = normalize.to(torch.float32)
         # Divide generating into chunks.
         chunk_size = self.chunk_size
         for i in range(0, out_scatter[0].size(1), chunk_size):
@@ -48,15 +48,24 @@ class MultiGPULossCompute:
             # Sum and normalize loss
             l = nn.parallel.gather(loss, 
                                    target_device=self.devices[0])
+#            print("l: ", l)
+#            print("l_sum: ", l.sum())
             l = l.sum() / normalize
+#            print("l2: ", l)
             total += l.item()
+#            print("total: ", total)
+#            print("total_norm: ", total * normalize)
 
             # Backprop loss to output of transformer
             if self.opt is not None:
                 l.backward()
                 for j, l in enumerate(loss):
                     out_grad[j].append(out_column[j][0].grad.data.clone())
-
+#       print("final_total: ", total)
+#        print("final_total_norm: ", total * normalize)
+#        print("final_total_dtype: ", total.dtype)
+#        print("final_norm_dtype: ", normalize.dtype)
+#        print("final_prod_dtype: ", (total * normalize).dtype)
         # Backprop all loss through transformer.            
         if self.opt is not None:
             out_grad = [Variable(torch.cat(og, dim=1)) for og in out_grad]
