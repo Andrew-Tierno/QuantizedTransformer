@@ -23,4 +23,8 @@ class LabelSmoothing(nn.Module):
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         self.true_dist = true_dist
+#        print("Data Type: ", true_dist.dtype)
+#        print("x: ", x)
+#        print("true_dist: ", true_dist)
+#        print("criterion: ", self.criterion(x, Variable(true_dist, requires_grad=False)))
         return self.criterion(x, Variable(true_dist, requires_grad=False))

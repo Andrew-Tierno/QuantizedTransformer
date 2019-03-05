@@ -7,8 +7,7 @@ class MultiGPULossCompute:
     def __init__(self, generator, criterion, devices, opt=None, chunk_size=5):
         # Send out to different gpus.
         self.generator = generator
-        self.criterion = nn.parallel.replicate(criterion, 
-                                               devices=devices)
+        self.criterion = criterion
         self.opt = opt
         self.devices = devices
         self.chunk_size = chunk_size
@@ -17,6 +16,8 @@ class MultiGPULossCompute:
         total = 0.0
         generator = nn.parallel.replicate(self.generator, 
                                                 devices=self.devices)
+        criterion = nn.parallel.replicate(self.criterion,
+                                          devices=self.devices)
         out_scatter = nn.parallel.scatter(out, 
                                           target_gpus=self.devices)
         out_grad = [[] for _ in out_scatter]
@@ -30,19 +31,25 @@ class MultiGPULossCompute:
             out_column = [[Variable(o[:, i:i+chunk_size].data, 
                                     requires_grad=self.opt is not None)] 
                            for o in out_scatter]
+            if len(generator) != len(out_column):
+                generator = nn.parallel.replicate(self.generator,
+                                                  devices=self.devices[0:len(out_column)])
             gen = nn.parallel.parallel_apply(generator, out_column)
-
-            # Compute loss. 
+           
+            # Compute loss.
             y = [(g.contiguous().view(-1, g.size(-1)), 
                   t[:, i:i+chunk_size].contiguous().view(-1)) 
                  for g, t in zip(gen, targets)]
-            loss = nn.parallel.parallel_apply(self.criterion, y)
+            if len(y) != len(criterion):
+                criterion = nn.parallel.replicate(self.criterion,
+                                                  devices=self.devices[0:len(y)])
+            loss = nn.parallel.parallel_apply(criterion, y)
 
             # Sum and normalize loss
             l = nn.parallel.gather(loss, 
                                    target_device=self.devices[0])
-            l = l.sum()[0] / normalize
-            total += l.data[0]
+            l = l.sum() / normalize
+            total += l.item()
 
             # Backprop loss to output of transformer
             if self.opt is not None:

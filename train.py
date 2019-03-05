@@ -2,6 +2,8 @@ import time
 import torch
 import torch.nn as nn
 
+from tqdm import tqdm
+
 from dataloader import generate_dataloaders
 from model import make_model
 from label_smoothing import LabelSmoothing
@@ -10,9 +12,12 @@ from noamopt import NoamOpt
 from multi_gpu_loss import MultiGPULossCompute
 from greedy_decoding import greedy_decode
 
+import os
+
 
 def run_epoch(data_iter, model, loss_compute):
     "Standard Training and Logging Function"
+    orig_start = time.time()
     start = time.time()
     total_tokens = 0
     total_loss = 0
@@ -26,8 +31,9 @@ def run_epoch(data_iter, model, loss_compute):
         tokens += batch.ntokens
         if i % 50 == 1:
             elapsed = time.time() - start
-            print("Epoch Step: %d Loss: %f Tokens per Sec: %f" %
-                  (i, loss / batch.ntokens, tokens / elapsed))
+            elapsed_orig = time.time() - orig_start
+            print("Epoch Step: %d Loss: %f TPS: %f Batch Time Elapsed: %d, Total Time Elapsed: %d" %
+                  (i, loss / batch.ntokens, tokens / elapsed, elapsed, elapsed_orig))
             start = time.time()
             tokens = 0
     return total_loss / total_tokens
@@ -48,28 +54,40 @@ def batch_size_fn(new, count, sofar):
     tgt_elements = count * max_tgt_in_batch
     return max(src_elements, tgt_elements)
 
+def get_unique_folder(root, prefix):
+    idx = 1
+    for folder in os.listdir(root):
+        if folder.startswith(prefix):
+            idx += 1
+    return os.path.join(root, prefix + str(idx))
+
 
 def train():
+    print("Loading data...")
     SRC, TGT, train, val, test = generate_dataloaders()
 
     devices = [0, 1, 2, 3]
     pad_idx = TGT.vocab.stoi["<blank>"]
+    print("Making model...")
     model = make_model(len(SRC.vocab), len(TGT.vocab), N=6)
     model.cuda()
     criterion = LabelSmoothing(
         size=len(TGT.vocab), padding_idx=pad_idx, smoothing=0.1)
     criterion.cuda()
     BATCH_SIZE = 12000
-    train_iter = BatchIterator(train, batch_size=BATCH_SIZE, device=0,
+    train_iter = BatchIterator(train, batch_size=BATCH_SIZE, device=torch.device(0),
                                repeat=False, sort_key=lambda x: (len(x.src), len(x.trg)),
                                batch_size_fn=batch_size_fn, train=True)
-    valid_iter = BatchIterator(val, batch_size=BATCH_SIZE, device=0,
+    valid_iter = BatchIterator(val, batch_size=BATCH_SIZE, device=torch.device(0),
                                repeat=False, sort_key=lambda x: (len(x.src), len(x.trg)),
                                batch_size_fn=batch_size_fn, train=False)
     model_par = nn.DataParallel(model, device_ids=devices)
     model_opt = NoamOpt(model.src_embed[0].d_model, 1, 2000,
                         torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
-    for epoch in range(10):
+    folder = get_unique_folder("./models/", "model")
+    if not(os.path.exists(folder)):
+        os.mkdir(folder)
+    for epoch in tqdm(range(10)):
         model_par.train()
         run_epoch((rebatch(pad_idx, b) for b in train_iter),
                   model_par,
@@ -80,6 +98,7 @@ def train():
                          model_par,
                          MultiGPULossCompute(model.generator, criterion,
                                              devices=devices, opt=None))
+        torch.save(model.state_dict, os.path.join(folder, "model.bin." + str(epoch)))
         print(loss)
 
     for i, batch in enumerate(valid_iter):

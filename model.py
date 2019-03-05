@@ -1,9 +1,11 @@
 import torch.nn as nn
+import copy
 
 from attention import MultiHeadedAttention
 from encoder_decoder import EncoderDecoder
 from position_feed_forward import PositionwiseFeedForward
 from positional_encodings import PositionalEncoding
+from embeddings import Embeddings
 from encoder import *
 from decoder import *
 from generator import Generator
