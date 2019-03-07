@@ -3,6 +3,7 @@ import torch
 from quant.greedy_decoding import greedy_decode
 from quant.dataloader import generate_dataloaders
 from tqdm import tqdm
+from batch_iterator import BatchIterator
 
 
 def log(text, log_file):
@@ -10,6 +11,7 @@ def log(text, log_file):
     log_file.write(text + "\n")
 
 if __name__ == "__main__":
+    BATCH_SIZE = 12000
     parser = argparse.ArgumentParser()
     parser.add_argument('model_name')
     parser.add_argument('log_name')
@@ -20,11 +22,14 @@ if __name__ == "__main__":
 
     print("Loading data...")
     SRC, TGT, train, val, test = generate_dataloaders("./data_processed/")
+    test_iter = BatchIterator(val, batch_size=BATCH_SIZE, device=torch.device(0),
+                               repeat=False, sort_key=lambda x: (len(x.src), len(x.trg)),
+                               batch_size_fn=batch_size_fn, train=False)
     print("Loading model...")
     model = torch.load(model_file)
     print("Generating test output...")
     log("Testing model stored at " + args.model_name + ".", log_file)
-    for i, batch in tqdm(enumerate(test)):
+    for i, batch in tqdm(enumerate(test_iter)):
         src = batch.src.transpose(0, 1)[:1]
         src_mask = (src != SRC.vocab.stoi["<blank>"]).unsqueeze(-2)
         out = greedy_decode(model, src, src_mask,
