@@ -9,7 +9,7 @@ class LinearQuant(torch.autograd.Function):
         bitwidth = bitwidth.to(device=x.device)
         ctx.save_for_backward(x, bitwidth, min_val, max_val)
         x = (x - min_val) / (max_val - min_val)
-        factor = torch.Tensor([1]) << (bitwidth-1)
+        factor = torch.tensor([1], device=x.device) << (bitwidth-1)
         return torch.round(x * factor.to(torch.float32))
 
     @staticmethod
