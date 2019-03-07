@@ -14,14 +14,19 @@ from greedy_decoding import greedy_decode
 
 import os
 
+def log(text, fname):
+    with open(fname, "a+") as outfile:
+        outfile.write(text)
 
-def run_epoch(data_iter, model, loss_compute):
+
+def run_epoch(data_iter, model, loss_compute, logfile):
     "Standard Training and Logging Function"
     orig_start = time.time()
     start = time.time()
     total_tokens = 0
     total_loss = 0
     tokens = 0
+    log("[Epoch]\n", logfile)
     for i, batch in enumerate(data_iter):
         out = model.forward(batch.src, batch.trg,
                             batch.src_mask, batch.trg_mask)
@@ -32,8 +37,9 @@ def run_epoch(data_iter, model, loss_compute):
         if i % 50 == 1:
             elapsed = time.time() - start
             elapsed_orig = time.time() - orig_start
-            print("Epoch Step: %d Loss: %f TPS: %f Batch Time Elapsed: %d, Total Time Elapsed: %d" %
-                  (i, loss / batch.ntokens, tokens / elapsed, elapsed, elapsed_orig))
+            output = "Epoch Step: %d Loss: %f TPS: %f Batch Time Elapsed: %d, Total Time Elapsed: %d" % (i, loss / batch.ntokens, tokens / elapsed, elapsed, elapsed_orig)
+            print(output)
+            log(output + "\n", logfile)
             start = time.time()
             tokens = 0
     return total_loss / total_tokens
@@ -87,17 +93,17 @@ def train():
     folder = get_unique_folder("./models/", "model")
     if not(os.path.exists(folder)):
         os.mkdir(folder)
-    for epoch in tqdm(range(10)):
+    for epoch in tqdm(range(15)):
         model_par.train()
         run_epoch((rebatch(pad_idx, b) for b in train_iter),
                   model_par,
                   MultiGPULossCompute(model.generator, criterion,
-                                      devices=devices, opt=model_opt))
+                                      devices=devices, opt=model_opt), os.path.join(folder, "logfile"))
         model_par.eval()
         loss = run_epoch((rebatch(pad_idx, b) for b in valid_iter),
                          model_par,
                          MultiGPULossCompute(model.generator, criterion,
-                                             devices=devices, opt=None))
+                                             devices=devices, opt=None), os.path.join(folder, "logfile"))
         torch.save(model.state_dict, os.path.join(folder, "model.bin." + str(epoch)))
         print(loss)
 
