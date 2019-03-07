@@ -39,7 +39,7 @@ class Linear(nn.Module):
             if bias is not None:
                 output += bias
             ret = output
-        return LinearQuant.apply(ret, bitwidth)
+        return nn.functional.relu(LinearQuant.apply(ret, bitwidth))
     def forward(self, x):
         print("xHERE: ", self.weight.size())
         return self.apply_linear(x, self.weight, self.bitwidth, self.bias)

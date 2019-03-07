@@ -7,7 +7,7 @@ class LinearQuant(torch.autograd.Function):
         min_val = x.min()
         max_val = x.max()
         ctx.save_for_backward(x, bitwidth, min_val, max_val)
-        x = 2 * (x - min_val) / (max_val - min_val) - 1
+        x = (x - min_val) / (max_val - min_val)
         factor = torch.Tensor([1]) << (bitwidth-1)
         return torch.round(x * factor)
 
