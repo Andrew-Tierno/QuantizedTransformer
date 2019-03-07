@@ -31,8 +31,12 @@ class Linear(nn.Module):
         weight = LinearQuant.apply(weight, bitwidth)
         if bias is not None:
             bias = LinearQuant.apply(torch.jit._unwrap_optional(bias), bitwidth)
+        x = x.to(dtype=torch.float32)
+        weight = weight.to(dtype=torch.float32)
+        if bias is not None:
+            bias = bias.to(dtype=torch.float32)
         if x.dim() == 2 and bias is not None:
-        # fused op is marginally faster
+            # fused op is marginally faster
             ret = torch.addmm(bias, x, weight.t())
         else:
             output = x.matmul(weight.t())

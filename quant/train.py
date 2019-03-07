@@ -2,6 +2,8 @@ import time
 import torch
 import torch.nn as nn
 
+import pickle
+
 from tqdm import tqdm
 
 from dataloader import generate_dataloaders
@@ -71,7 +73,6 @@ def get_unique_folder(root, prefix):
 def train():
     print("Loading data...")
     SRC, TGT, train, val, test = generate_dataloaders()
-
     devices = [0, 1, 2, 3]
     pad_idx = TGT.vocab.stoi["<blank>"]
     print("Making model...")
