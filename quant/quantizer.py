@@ -21,5 +21,5 @@ class LinearQuant(torch.autograd.Function):
         factor = torch.tensor([1], device=x.device) << (bitwidth-1)
         factor = factor.to(torch.float32)
         grad_x = grad_out * (((x.norm(dim=-1) < factor)).unsqueeze(-1).to(x.dtype))
-        grad_x = grad_x * (max_val - min_val) / (2 * factor)
+        grad_x = grad_x * (max_val - min_val) / (factor)
         return grad_x, None
