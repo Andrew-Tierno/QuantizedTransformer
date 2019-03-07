@@ -12,10 +12,10 @@ class Linear(nn.Module):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = Parameter(torch.zeros((out_features, in_features)))
-        self.bitwidth = Variable(torch.tensor([bitwidth]), requires_grad=False)
+        self.weight = Parameter(torch.Tensor(out_features, in_features))
+        self.bitwidth = Variable(torch.Tensor([bitwidth]), requires_grad=False)
         if bias:
-            self.bias = Parameter(torch.zeros(out_features))
+            self.bias = Parameter(torch.Tensor(out_features))
         else:
             self.register_parameter('bias', None)
         self.reset_parameters()
@@ -39,7 +39,8 @@ class Linear(nn.Module):
             if bias is not None:
                 output += bias
             ret = output
-        return nn.functional.relu(LinearQuant.apply(ret, bitwidth))
+        return LinearQuant.apply(ret, bitwidth)
     def forward(self, x):
+        print("xHERE: ", self.weight.size())
         return self.apply_linear(x, self.weight, self.bitwidth, self.bias)
 
