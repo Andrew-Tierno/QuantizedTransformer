@@ -4,8 +4,8 @@ import torch.nn as nn
 class LinearQuant(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x, bitwidth):
-        min_val = x.min()
-        max_val = x.max()
+        max_val = x.std()
+        min_val = -x.std()
         bitwidth = bitwidth.to(device=x.device)
         ctx.save_for_backward(x, bitwidth, min_val, max_val)
         x = (x - min_val) / (max_val - min_val)
