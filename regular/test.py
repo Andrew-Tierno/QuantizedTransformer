@@ -1,10 +1,10 @@
 import argparse
 import torch
-from quant.greedy_decoding import greedy_decode
-from quant.dataloader import generate_dataloaders
+from greedy_decoding import greedy_decode
+from dataloader import generate_dataloaders
 from tqdm import tqdm
 from batch_iterator import BatchIterator
-
+from model import make_model
 
 def log(text, log_file):
     print(text)
@@ -29,27 +29,38 @@ if __name__ == "__main__":
     parser.add_argument('log_name')
 
     args = parser.parse_args()
-    model_file = open(args.model_name)
-    log_file = open(args.log_name, 'w')
+    model_file = open(args.model_name, 'rb')
+    log_file = open(args.log_name, 'w+')
 
     print("Loading data...")
-    SRC, TGT, train, val, test = generate_dataloaders("./data_processed/")
+    SRC, TGT, train, val, test = generate_dataloaders("../data_processed/")
     test_iter = BatchIterator(test, batch_size=BATCH_SIZE, device=torch.device(0),
                                repeat=False, sort_key=lambda x: (len(x.src), len(x.trg)),
                                batch_size_fn=batch_size_fn, train=False)
     print("Loading model...")
-    model = torch.load(model_file)
+    model = make_model(len(SRC.vocab), len(TGT.vocab), N=6)
+    model.load_state_dict((torch.load(args.model_name))())
+    model.cuda()
+    model.eval()
     print("Generating test output...")
     log("Testing model stored at " + args.model_name + ".", log_file)
-    for i, batch in tqdm(enumerate(test_iter)):
-        src = batch.src.transpose(0, 1)[:1]
-        src_mask = (src != SRC.vocab.stoi["<blank>"]).unsqueeze(-2)
-        out = greedy_decode(model, src, src_mask,
+    for k, batch in tqdm(enumerate(test_iter)):
+#        print("Batch: ", batch)
+#        print("k: ", k)
+        src_orig = batch.src.transpose(0, 1)
+#        print("src: ", src)
+#        print("src_size: ", src.size())
+        for m in range(1, len(src_orig)+1):
+            src = src_orig[m:(m+1)]
+            src_mask = (src != SRC.vocab.stoi["<blank>"]).unsqueeze(-2)
+            out = greedy_decode(model, src, src_mask,
                             max_len=60, start_symbol=TGT.vocab.stoi["<s>"])
-        for i in range(0, out.size(0)):
-            for j in range(1, out.size(1)):
-                sym = TGT.vocab.itos[out[i, j]]
-                if sym == "</s>":
-                    break
-                log_file.write(sym)
-            log_file.write("\n")
+            for i in range(0, out.size(0)):
+                for j in range(1, out.size(1)):
+                    sym = TGT.vocab.itos[out[i, j]]
+                    if sym == "</s>":
+                        break
+                    log_file.write(sym)
+                    if j < out.size(1) - 1:
+                        log_file.write(" ")
+                log_file.write("\n")
