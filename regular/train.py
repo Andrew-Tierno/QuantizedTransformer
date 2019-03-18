@@ -99,7 +99,7 @@ def train():
                          MultiGPULossCompute(model.generator, criterion,
                                              devices=devices, opt=None))
         torch.save(model.state_dict(), os.path.join(folder, "model.bin." + str(epoch)))
-s        print(loss)
+        print(loss)
 
     for i, batch in enumerate(valid_iter):
         src = batch.src.transpose(0, 1)[:1]

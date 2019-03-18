@@ -39,19 +39,22 @@ if __name__ == "__main__":
                                batch_size_fn=batch_size_fn, train=False)
     print("Loading model...")
     model = make_model(len(SRC.vocab), len(TGT.vocab), N=6)
-    model.load_state_dict((torch.load(args.model_name))())
+    model.load_state_dict(torch.load(args.model_name))
     model.cuda()
     model.eval()
     print("Generating test output...")
     log("Testing model stored at " + args.model_name + ".", log_file)
     for k, batch in tqdm(enumerate(test_iter)):
-#        print("Batch: ", batch)
+        print("Batch Size Orig: ", batch.src.size())
 #        print("k: ", k)
         src_orig = batch.src.transpose(0, 1)
+        trg_orig = batch.trg.transpose(0, 1)
+        print("Batch Size Final: ", src_orig.size())
 #        print("src: ", src)
 #        print("src_size: ", src.size())
-        for m in range(1, len(src_orig)+1):
+        for m in tqdm(range(0, len(src_orig), 1)):
             src = src_orig[m:(m+1)]
+            trg = trg_orig[m:(m+1)]
             src_mask = (src != SRC.vocab.stoi["<blank>"]).unsqueeze(-2)
             out = greedy_decode(model, src, src_mask,
                             max_len=60, start_symbol=TGT.vocab.stoi["<s>"])
@@ -61,6 +64,15 @@ if __name__ == "__main__":
                     if sym == "</s>":
                         break
                     log_file.write(sym)
-                    if j < out.size(1) - 1:
-                        log_file.write(" ")
-                log_file.write("\n")
+                    log_file.write(" ")
+            log_file.write("\t||\t")
+            for i in range(trg.size(0)):
+                for j in range(1, trg.size(1)):
+                    sym = TGT.vocab.itos[trg[i, j]]
+                    if sym == "<unk>":
+                        sym = "<ood>"
+                    if sym == "</s>":
+                        break
+                    log_file.write(sym)
+                    log_file.write(" ")
+            log_file.write("\n")
