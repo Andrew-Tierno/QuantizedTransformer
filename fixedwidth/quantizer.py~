@@ -1,0 +1,25 @@
+import torch
+import torch.nn as nn
+
+
+def quantize(x, decimal_precision=5, bitwidth=8):    
+    max_val = (1 << (8 - 5 - 2)) * (255.0/256.0) / 0.5
+    min_val = -max_val
+    x = x.clamp(min_val, max_val)
+    res = (x * (1 << 5)).to(torch.int).to(torch.float32) / (2**(-5))
+    return res
+
+
+
+class Quantize(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x):
+        ctx.save_for_backward(x)
+        return quantize(x)
+
+    @staticmethod
+    def backward(ctx, grad_out):
+        x, = ctx.saved_tensors
+        max_val = (1 << (8 - 5 - 2)) * (255.0/256.0) / 0.5
+        grad_x = grad_out * (x.abs() <= max_val).to(x.dtype) 
+        return grad_x

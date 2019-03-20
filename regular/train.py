@@ -14,8 +14,10 @@ from greedy_decoding import greedy_decode
 
 import os
 
+def log(text, f):
+    f.write(text + "\n")
 
-def run_epoch(data_iter, model, loss_compute):
+def run_epoch(data_iter, model, loss_compute, log_file):
     "Standard Training and Logging Function"
     orig_start = time.time()
     start = time.time()
@@ -34,6 +36,7 @@ def run_epoch(data_iter, model, loss_compute):
             elapsed_orig = time.time() - orig_start
             print("Epoch Step: %d Loss: %f TPS: %f Batch Time Elapsed: %d, Total Time Elapsed: %d" %
                   (i, loss / batch.ntokens, tokens / elapsed, elapsed, elapsed_orig))
+            log("Epoch Step: " + str(i) + " Loss: " + str(loss / batch.ntokens), log_file)
             start = time.time()
             tokens = 0
     return total_loss / total_tokens
@@ -87,17 +90,20 @@ def train():
     folder = get_unique_folder("./models/", "model")
     if not(os.path.exists(folder)):
         os.mkdir(folder)
+    log_file = open(os.path.join(folder, "logfile"), 'w')
     for epoch in tqdm(range(10)):
         model_par.train()
+        log("Epoch " + str(epoch) + " Train", log_file)
         run_epoch((rebatch(pad_idx, b) for b in train_iter),
                   model_par,
                   MultiGPULossCompute(model.generator, criterion,
-                                      devices=devices, opt=model_opt))
+                                      devices=devices, opt=model_opt), log_file)
         model_par.eval()
+        log("Epoch " + str(epoch) + " Val", log_file)
         loss = run_epoch((rebatch(pad_idx, b) for b in valid_iter),
                          model_par,
                          MultiGPULossCompute(model.generator, criterion,
-                                             devices=devices, opt=None))
+                                             devices=devices, opt=None), log_file)
         torch.save(model.state_dict(), os.path.join(folder, "model.bin." + str(epoch)))
         print(loss)
 

@@ -2,3 +2,4 @@
 models/*
 quant/models/*
 regular/models/*
+fixedwidth/models/*
